@@ -1,10 +1,15 @@
-import { motion } from "framer-motion";
-import { User, Lock, Github } from "lucide-react";
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
-
+import{BrowserRouter,Routes,Route,Navigate} from 'react-router-dom';
+// import Home from './Home';
+import Login from './Login';
+// import Dashboard from './Dashboard';
 export default function App() {
-
+    return (<BrowserRouter>
+        <Routes>
+            {/* <Route path="/" element={<Home/>}/> */}
+            <Route path="/loginUser" element={<Login/>}/>
+            {/* <Route path="/dashboard" element={<Dashboard/>}/> */}
+        </Routes>
+    </BrowserRouter>)
 }
 
 
