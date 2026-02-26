@@ -14,7 +14,7 @@ export default function SignUp(){
 
         e.preventDefault();
 
-        fetch("http://localhost:8080/signup",{
+        fetch("http://localhost:8080/registerUser",{
             method: 'POST',
             headers:{'Content-Type':'application/json'},
             credentials:'include',
@@ -24,7 +24,7 @@ export default function SignUp(){
             if(respone.ok){
                 return respone.json().then(data=>{
                     setFeedback("✅ " + data.message + " Redirecting...");
-                    setTimeout(() => navigate('/login'), 2000);
+                    setTimeout(() => navigate('/loginUser'), 2000);
                 });
             }
             else{
@@ -98,7 +98,7 @@ export default function SignUp(){
 
             {/* Link back to login if they already have an account */}
             <div style={{ textAlign: "center", marginTop: "15px", fontSize: "14px" }}>
-                Already have an account? <span style={{ color: "#0056b3", cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate('/login')}>Log in here</span>
+                Already have an account? <span style={{ color: "#0056b3", cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate('/loginUser')}>Log in here</span>
             </div>
         </div>
     );

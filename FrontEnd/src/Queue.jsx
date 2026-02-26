@@ -5,21 +5,21 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 
 const Queue = () => {
-    const [username, setUsername] = useState('');
+    // Automatically grab the logged-in username! No more typing.
+    const username = localStorage.getItem("username"); 
+    
     const [isSearching, setIsSearching] = useState(false);
     const navigate = useNavigate();
-
     const [stompClient, setStompClient] = useState(null);
 
     useEffect(() => {
+        // If they bypassed the login screen, kick them out
+        if (!username) { navigate('/loginUser'); }
         return () => { if (stompClient) stompClient.disconnect(); };
-    }, [stompClient]);
+    }, [stompClient, username, navigate]);
 
     const findMatch = () => {
-        if (!username) return alert("Enter a username!");
-        
         setIsSearching(true);
-        localStorage.setItem("username", username); 
 
         const client = Stomp.over(() => new SockJS('http://localhost:8080/ws'));
         client.debug = () => {}; 
@@ -29,15 +29,13 @@ const Queue = () => {
             
             client.subscribe(`/room/match/${username}`, (message) => {
                 const payload = JSON.parse(message.body);
-                console.log("🚨 MATCH FOUND!", payload);
-                
                 localStorage.setItem("opponent", payload.opponent);
-
                 client.disconnect(); 
                 navigate(`/arena/${payload.roomId}`); 
             });
 
-            axios.post(`http://localhost:8080/match/join?userName=${username}&points=1200`)
+            // Cleaned up Axios! No parameters needed, just send the cookie!
+            axios.post(`http://localhost:8080/match/join`, {}, { withCredentials: true })
                 .then(res => console.log("Joined Redis Queue:", res.data))
                 .catch(err => console.error(err));
         });
@@ -45,20 +43,16 @@ const Queue = () => {
         setStompClient(client);
     };
 
-    // NEW FUNCTION: The Escape Hatch
     const leaveQueue = () => {
-        // 1. Tell Spring Boot to delete us from Redis
-        axios.post(`http://localhost:8080/match/leave?userName=${username}`)
+        // Cleaned up Axios!
+        axios.post(`http://localhost:8080/match/leave`, {}, { withCredentials: true })
             .then(res => console.log("Left Queue:", res.data))
             .catch(err => console.error(err));
 
-        // 2. Hang up the Walkie-Talkie
         if (stompClient) {
             stompClient.disconnect();
             setStompClient(null);
         }
-
-        // 3. Reset the UI
         setIsSearching(false);
     };
 
@@ -67,14 +61,9 @@ const Queue = () => {
             <h1>⚔️ 1v1 Coding Arena</h1>
             {!isSearching ? (
                 <div>
-                    <input 
-                        value={username} 
-                        onChange={(e) => setUsername(e.target.value)} 
-                        placeholder="Enter Username..." 
-                        style={{ padding: '10px', fontSize: '16px' }}
-                    />
-                    <br/><br/>
-                    <button onClick={findMatch} style={{ padding: '10px 20px', cursor: 'pointer', background: 'green', color: 'white', border: 'none', borderRadius: '5px' }}>
+                    <h2>Ready, {username}?</h2>
+                    <br/>
+                    <button onClick={findMatch} style={{ padding: '15px 30px', cursor: 'pointer', background: 'green', color: 'white', border: 'none', borderRadius: '5px', fontSize: '18px' }}>
                         Find Match
                     </button>
                 </div>
@@ -83,7 +72,6 @@ const Queue = () => {
                     <h2>Searching for opponent...</h2>
                     <p>Listening to Redis Queue...</p>
                     <br/>
-                    {/* NEW BUTTON: The Cancel Button */}
                     <button onClick={leaveQueue} style={{ padding: '10px 20px', cursor: 'pointer', background: 'red', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
                         ❌ Cancel Search
                     </button>
