@@ -59,20 +59,7 @@ export default function Dashboard(){
                         </h2>
                     </div>
 
-                    <button 
-                        onClick={() => navigate('/sendMoney')} 
-                        style={{ width: "100%", padding: "12px", backgroundColor: "#0056b3", color: "white", fontWeight: "bold", border: "none", cursor: "pointer", borderRadius: "4px", fontSize: "16px" }}
-                    >
-                        💸 Transfer Funds
-                    </button>
-                    
-                    <button 
-                        onClick={() => navigate('/history')} 
-                        style={{ width: "100%", padding: "12px", backgroundColor: "#0056b3", color: "white", fontWeight: "bold", border: "none", cursor: "pointer", borderRadius: "4px", fontSize: "16px", marginTop: "10px" }}
-                    >
-                        🔍 See History
-                    </button>
-
+                
                     {/* NEW BUTTON: Join the Matchmaking Queue */}
                     <button 
                         onClick={() => navigate('/queue')} // Make sure this matches your App.jsx Route!

@@ -20,11 +20,11 @@ export default function Login(){
             method: 'POST',
             headers:{'Content-Type':'application/json'},
             credentials:'include',
-            body:JSON.stringify({userEmail:email,password:password})
+            body:JSON.stringify({email:email,password:password})
         }).then(response=>{
             if(response.ok){
                 return response.json().then(data=>{
-                    setMessage("Login in successful, welcome "+data.name);
+                    setMessage("Login in successful, welcome");
                     setTimeout(()=>{
                         navigate('/dashboard')},1500);
                 });
