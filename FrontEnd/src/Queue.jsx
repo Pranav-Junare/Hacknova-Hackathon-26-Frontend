@@ -9,11 +9,9 @@ const Queue = () => {
     const [isSearching, setIsSearching] = useState(false);
     const navigate = useNavigate();
 
-    // We store the stompClient in state so we can disconnect it when we leave the page
     const [stompClient, setStompClient] = useState(null);
 
     useEffect(() => {
-        // Cleanup function when component unmounts
         return () => { if (stompClient) stompClient.disconnect(); };
     }, [stompClient]);
 
@@ -21,36 +19,47 @@ const Queue = () => {
         if (!username) return alert("Enter a username!");
         
         setIsSearching(true);
-        localStorage.setItem("username", username); // Save it so the Arena page knows who we are
+        localStorage.setItem("username", username); 
 
-        // 1. Connect the Walkie-Talkie FIRST
-        const socket = new SockJS('http://localhost:8080/ws');
-        const client = Stomp.over(socket);
-        client.debug = () => {}; // Mutes the annoying console logs
+        const client = Stomp.over(() => new SockJS('http://localhost:8080/ws'));
+        client.debug = () => {}; 
 
         client.connect({}, () => {
             console.log("Connected to lobby WebSocket!");
             
-            // 2. Listen to your personal channel! (Notice the /room/ prefix you configured)
             client.subscribe(`/room/match/${username}`, (message) => {
                 const payload = JSON.parse(message.body);
                 console.log("🚨 MATCH FOUND!", payload);
                 
-                // Save opponent name to local storage to show in the UI later
                 localStorage.setItem("opponent", payload.opponent);
 
-                // 3. Jump to the Arena!
-                client.disconnect(); // Hang up this radio
-                navigate(`/arena/${payload.roomId}`); // Change the URL
+                client.disconnect(); 
+                navigate(`/arena/${payload.roomId}`); 
             });
 
-            // 4. AFTER WebSocket is listening, send the HTTP POST to join the Redis Queue
             axios.post(`http://localhost:8080/match/join?userName=${username}&points=1200`)
                 .then(res => console.log("Joined Redis Queue:", res.data))
                 .catch(err => console.error(err));
         });
 
         setStompClient(client);
+    };
+
+    // NEW FUNCTION: The Escape Hatch
+    const leaveQueue = () => {
+        // 1. Tell Spring Boot to delete us from Redis
+        axios.post(`http://localhost:8080/match/leave?userName=${username}`)
+            .then(res => console.log("Left Queue:", res.data))
+            .catch(err => console.error(err));
+
+        // 2. Hang up the Walkie-Talkie
+        if (stompClient) {
+            stompClient.disconnect();
+            setStompClient(null);
+        }
+
+        // 3. Reset the UI
+        setIsSearching(false);
     };
 
     return (
@@ -65,7 +74,7 @@ const Queue = () => {
                         style={{ padding: '10px', fontSize: '16px' }}
                     />
                     <br/><br/>
-                    <button onClick={findMatch} style={{ padding: '10px 20px', cursor: 'pointer', background: 'green', color: 'white' }}>
+                    <button onClick={findMatch} style={{ padding: '10px 20px', cursor: 'pointer', background: 'green', color: 'white', border: 'none', borderRadius: '5px' }}>
                         Find Match
                     </button>
                 </div>
@@ -73,6 +82,11 @@ const Queue = () => {
                 <div style={{ color: 'orange' }}>
                     <h2>Searching for opponent...</h2>
                     <p>Listening to Redis Queue...</p>
+                    <br/>
+                    {/* NEW BUTTON: The Cancel Button */}
+                    <button onClick={leaveQueue} style={{ padding: '10px 20px', cursor: 'pointer', background: 'red', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
+                        ❌ Cancel Search
+                    </button>
                 </div>
             )}
         </div>

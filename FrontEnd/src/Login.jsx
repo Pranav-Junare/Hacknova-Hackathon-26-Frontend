@@ -24,6 +24,7 @@ export default function Login(){
         }).then(response=>{
             if(response.ok){
                 return response.json().then(data=>{
+                    localStorage.setItem("username", data.username);
                     setMessage("Login in successful, welcome");
                     setTimeout(()=>{
                         navigate('/dashboard')},1500);
