@@ -22,7 +22,6 @@ const Queue = () => {
         setIsSearching(true);
 
         const client = Stomp.over(() => new SockJS('http://localhost:8080/ws'));
-        client.debug = () => {}; 
 
         client.connect({}, () => {
             console.log("Connected to lobby WebSocket!");
