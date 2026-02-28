@@ -12,13 +12,17 @@ export default function Dashboard(){
         fetch("http://localhost:8080/dashboard", {
             method: "GET",
             headers: {'Content-Type': 'application/json'},
-            credentials: 'include'
+            credentials: 'include',
+            cache: 'no-store' // 👈 THIS FIXES THE STALE ELO BUG! Forces a fresh DB check.
         })
         .then(response => {
             if (response.ok) {
                 return response.json().then(data => {
                     setPoint(data.points);
                     setName(data.name);
+                    
+                    // CRITICAL: Save the username so Queue and Arena know who you are!
+                    localStorage.setItem("username", data.name);
                 });
             } else {
                 return response.json().then(data => {
@@ -59,14 +63,23 @@ export default function Dashboard(){
                         </h2>
                     </div>
 
-                
-                    {/* NEW BUTTON: Join the Matchmaking Queue */}
-                    <button 
-                        onClick={() => navigate('/queue')} // Make sure this matches your App.jsx Route!
-                        style={{ width: "100%", padding: "12px", backgroundColor: "#dc3545", color: "white", fontWeight: "bold", border: "none", cursor: "pointer", borderRadius: "4px", fontSize: "16px", marginTop: "25px" }}
-                    >
-                        ⚔️ Join 1v1 Matchmaking
-                    </button>
+                    {/* NEW: DUAL MODE BUTTONS */}
+                    <h3 style={{ marginTop: "20px", marginBottom: "10px", color: "#555" }}>Select Battleground</h3>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                        <button 
+                            onClick={() => navigate('/queue', { state: { mode: 'dsa' } })} 
+                            style={{ flex: 1, padding: "12px", backgroundColor: "#28a745", color: "white", fontWeight: "bold", border: "none", cursor: "pointer", borderRadius: "4px", fontSize: "16px" }}
+                        >
+                            💻 1v1 DSA
+                        </button>
+                        
+                        <button 
+                            onClick={() => navigate('/queue', { state: { mode: 'design' } })} 
+                            style={{ flex: 1, padding: "12px", backgroundColor: "#f39c12", color: "white", fontWeight: "bold", border: "none", cursor: "pointer", borderRadius: "4px", fontSize: "16px" }}
+                        >
+                            ⚙️ 1v1 Design
+                        </button>
+                    </div>
                     
                 </div>
             )}

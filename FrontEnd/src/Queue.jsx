@@ -1,83 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
+import axios from 'axios'; 
 
-const Queue = () => {
-    // Automatically grab the logged-in username! No more typing.
-    const username = localStorage.getItem("username"); 
-    
-    const [isSearching, setIsSearching] = useState(false);
+export default function Queue() {
     const navigate = useNavigate();
-    const [stompClient, setStompClient] = useState(null);
+    
+    // 1. THE CATCHER'S MITT: Grab the mode from the Dashboard!
+    const location = useLocation();
+    const mode = location.state?.mode || 'dsa'; // Defaults to DSA if they somehow bypass the dashboard
+    
+    const username = localStorage.getItem("username");
+    const [status, setStatus] = useState("Connecting to server...");
 
     useEffect(() => {
-        // If they bypassed the login screen, kick them out
-        if (!username) { navigate('/loginUser'); }
-        return () => { if (stompClient) stompClient.disconnect(); };
-    }, [stompClient, username, navigate]);
-
-    const findMatch = () => {
-        setIsSearching(true);
+        if (!username) { navigate('/loginUser'); return; }
 
         const client = Stomp.over(() => new SockJS('http://localhost:8080/ws'));
+        client.debug = () => {}; // Mute standard logs
 
         client.connect({}, () => {
-            console.log("Connected to lobby WebSocket!");
-            
+            setStatus(`Searching for ${mode.toUpperCase()} opponent...`);
+
+            // 2. LISTEN FOR THE MATCH
             client.subscribe(`/room/match/${username}`, (message) => {
                 const payload = JSON.parse(message.body);
                 localStorage.setItem("opponent", payload.opponent);
-                client.disconnect(); 
-                navigate(`/arena/${payload.roomId}`); 
+                
+                // 3. WARP TO THE CORRECT ARENA MODE!
+                navigate(`/arena/${payload.mode}/${payload.roomId}`);
             });
 
-            // Cleaned up Axios! No parameters needed, just send the cookie!
-            axios.post(`http://localhost:8080/match/join`, {}, { withCredentials: true })
-                .then(res => console.log("Joined Redis Queue:", res.data))
-                .catch(err => console.error(err));
+            // 4. TELL SPRING BOOT WHICH QUEUE TO JOIN
+            // (Make sure this URL matches your actual join queue endpoint)
+            console.log(mode);
+            axios.post('http://localhost:8080/api/queue/join', { 
+                username: username,
+                mode: mode 
+            }, { withCredentials: true })
+            .then(() => console.log(`Successfully joined the ${mode} queue!`))
+            .catch(err => console.error("Failed to join queue:", err));
         });
 
-        setStompClient(client);
-    };
-
-    const leaveQueue = () => {
-        // Cleaned up Axios!
-        axios.post(`http://localhost:8080/match/leave`, {}, { withCredentials: true })
-            .then(res => console.log("Left Queue:", res.data))
-            .catch(err => console.error(err));
-
-        if (stompClient) {
-            stompClient.disconnect();
-            setStompClient(null);
-        }
-        setIsSearching(false);
-    };
+        // Cleanup when they leave the page
+        return () => {
+            if (client) client.disconnect();
+            // (Optional: send a request to leave the queue here)
+        };
+    }, [username, navigate, mode]);
 
     return (
-        <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'monospace' }}>
-            <h1>⚔️ 1v1 Coding Arena</h1>
-            {!isSearching ? (
-                <div>
-                    <h2>Ready, {username}?</h2>
-                    <br/>
-                    <button onClick={findMatch} style={{ padding: '15px 30px', cursor: 'pointer', background: 'green', color: 'white', border: 'none', borderRadius: '5px', fontSize: '18px' }}>
-                        Find Match
-                    </button>
-                </div>
-            ) : (
-                <div style={{ color: 'orange' }}>
-                    <h2>Searching for opponent...</h2>
-                    <p>Listening to Redis Queue...</p>
-                    <br/>
-                    <button onClick={leaveQueue} style={{ padding: '10px 20px', cursor: 'pointer', background: 'red', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
-                        ❌ Cancel Search
-                    </button>
-                </div>
-            )}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#121212', color: 'white', fontFamily: 'sans-serif' }}>
+            
+            {/* Dynamic Icon based on Mode */}
+            <h1 style={{ fontSize: '60px', margin: '0 0 20px 0' }}>
+                {mode === 'dsa' ? '💻' : '⚙️'}
+            </h1>
+            
+            <h2 style={{ color: '#4CAF50' }}>{status}</h2>
+            
+            {/* Simple CSS Spinner */}
+            <div style={{ marginTop: '20px', width: '50px', height: '50px', border: '5px solid #333', borderTop: '5px solid #f39c12', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            
         </div>
     );
-};
-
-export default Queue;
+}

@@ -16,7 +16,7 @@ export default function App() {
             <Route path="/registerUser" element={<SignUp/>}/>
             <Route path="/dashboard" element={<Dashboard/>}/>
             <Route path="/queue" element={<Queue/>}/>
-            <Route path="/arena/:roomId" element={<Arena/>}/>
+            <Route path="/arena/:mode/:roomId" element={<Arena />} />
         </Routes>
     </BrowserRouter>)
 }
