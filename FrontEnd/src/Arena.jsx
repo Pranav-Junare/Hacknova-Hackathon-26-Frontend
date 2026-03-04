@@ -6,7 +6,6 @@ import Editor from '@monaco-editor/react';
 import { ReactFlow, addEdge, applyNodeChanges, applyEdgeChanges, Controls, Background } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-// Button styling pulled outside the component so it doesn't cause re-renders
 const btnStyle = { padding: '12px', backgroundColor: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' };
 
 export default function Arena() {
@@ -14,12 +13,21 @@ export default function Arena() {
     const navigate = useNavigate();
     const username = localStorage.getItem("username");
     const opponent = localStorage.getItem("opponent") || "Opponent";
+    
+    // 🔥 1. GRAB THE QUESTION ID FROM THE MATCHMAKER
+    const questionId = localStorage.getItem("questionId") || "1"; 
 
     const [opponentStatus, setOpponentStatus] = useState("Waiting...");
     const [stompClient, setStompClient] = useState(null);
 
-    // --- DSA STATE ---
-    const [code, setCode] = useState("#include <iostream>\n#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        // Write your solution here\n        return {};\n    }\n};");
+    // 🔥 2. DYNAMIC QUESTION STATE
+    const [question, setQuestion] = useState({
+        title: "Loading...",
+        difficulty: "Loading...",
+        description: "Fetching mission briefing...",
+        boilerPlate: "// Loading..."
+    });
+    const [code, setCode] = useState("// Loading...");
 
     // --- SYSTEM DESIGN STATE ---
     const [nodes, setNodes] = useState([{ id: 'client-1', type: 'input', data: { label: '💻 Client User' }, position: { x: 250, y: 50 } }]);
@@ -31,9 +39,9 @@ export default function Arena() {
     const onConnect = useCallback((params) => { 
         setEdges((eds) => addEdge(params, eds)); 
         if (stompClient && stompClient.connected) {
-            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "TYPING", code: "active", mode }));
+            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "TYPING", code: "active", mode, questionId }));
         }
-    }, [stompClient, roomId, username, mode]);
+    }, [stompClient, roomId, username, mode, questionId]);
 
     const addNode = (label, emoji) => {
         const newNode = {
@@ -43,13 +51,26 @@ export default function Arena() {
         };
         setNodes((nds) => [...nds, newNode]);
         if (stompClient && stompClient.connected) {
-            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "TYPING", code: "active", mode }));
+            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "TYPING", code: "active", mode, questionId }));
         }
     };
 
+    // 🔥 3. FETCH QUESTION DATA FROM SPRING BOOT
+    useEffect(() => {
+        if (mode === 'dsa') {
+            fetch(`http://localhost:8080/api/questions/${questionId}`)
+                .then(res => res.json())
+                .then(data => {
+                    setQuestion(data);
+                    setCode(data.boilerPlate); // Inject the boilerplate from DB!
+                })
+                .catch(err => console.error("Failed to load question from DB:", err));
+        }
+    }, [mode, questionId]);
+
     // --- WEBSOCKETS ---
     useEffect(() => {
-        if (!username) { navigate('/login'); return; }
+        if (!username) { navigate('/loginUser'); return; }
 
         const client = Stomp.over(() => new SockJS('http://localhost:8080/ws'));
         client.debug = () => {}; 
@@ -65,6 +86,11 @@ export default function Arena() {
                         } else {
                             alert(`💀 DEFEAT! ${payload.playerId} solved it first!`);
                         }
+                        
+                        // 🔥 THE FIX: Wipe the slate clean for the next match!
+                        localStorage.removeItem("questionId");
+                        localStorage.removeItem("opponent");
+                        
                         navigate('/dashboard'); 
                     } 
                     else if (payload.status === "FAILED" && payload.playerId === username) {
@@ -90,7 +116,8 @@ export default function Arena() {
     // --- SUBMIT HANDLERS ---
     const handleDsaSubmit = () => {
         if (stompClient && stompClient.connected) {
-            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "SUBMITTED", code: code, mode: "dsa" }));
+            // 🔥 SEND THE QUESTION ID TO THE COMPILER
+            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "SUBMITTED", code: code, mode: "dsa", questionId }));
             alert("Running test cases... Please wait.");
         }
     };
@@ -98,14 +125,12 @@ export default function Arena() {
     const handleDesignSubmit = () => {
         if (stompClient && stompClient.connected) {
             const architecture = JSON.stringify({ nodes, edges });
-            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "SUBMITTED", code: architecture, mode: "design" }));
+            // 🔥 SEND THE QUESTION ID TO THE DESIGN EVALUATOR
+            stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "SUBMITTED", code: architecture, mode: "design", questionId }));
             alert("Evaluating System Architecture...");
         }
     };
 
-    // ==========================================
-    // RENDER: SYSTEM DESIGN UI
-    // ==========================================
     if (mode === "design") {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#1e1e1e', color: 'white', fontFamily: 'sans-serif' }}>
@@ -142,9 +167,6 @@ export default function Arena() {
         );
     }
 
-    // ==========================================
-    // RENDER: DSA UI
-    // ==========================================
     if (mode === "dsa") {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#1e1e1e', color: '#d4d4d4', fontFamily: 'sans-serif' }}>
@@ -156,15 +178,12 @@ export default function Arena() {
 
                 <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                     <div style={{ flex: 1, padding: '20px', borderRight: '2px solid #333', overflowY: 'auto', backgroundColor: '#1e1e1e' }}>
-                        <h1 style={{ marginTop: 0 }}>1. Two Sum</h1>
-                        <span style={{ backgroundColor: '#28a745', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>Easy</span>
-                        <p style={{ fontSize: '16px', lineHeight: '1.6', marginTop: '20px' }}>
-                            Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to <code>target</code>.
+                        {/* 🔥 DYNAMIC QUESTION INJECTED HERE */}
+                        <h1 style={{ marginTop: 0 }}>{question.title}</h1>
+                        <span style={{ backgroundColor: '#28a745', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>{question.difficulty}</span>
+                        <p style={{ fontSize: '16px', lineHeight: '1.6', marginTop: '20px', whiteSpace: 'pre-wrap' }}>
+                            {question.description}
                         </p>
-                        <div style={{ backgroundColor: '#2d2d2d', padding: '15px', borderRadius: '5px', marginTop: '20px', fontFamily: 'monospace' }}>
-                            <strong>Input:</strong> nums = [2,7,11,15], target = 9<br/>
-                            <strong>Output:</strong> [0,1]
-                        </div>
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -177,7 +196,7 @@ export default function Arena() {
                                 onChange={(v) => { 
                                     setCode(v); 
                                     if (stompClient && stompClient.connected) {
-                                        stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "TYPING", code: "active", mode }));
+                                        stompClient.send(`/app/arena/submit`, {}, JSON.stringify({ roomId, playerId: username, status: "TYPING", code: "active", mode, questionId }));
                                     }
                                 }}
                                 options={{ minimap: { enabled: false }, fontSize: 16, wordWrap: "on" }}
@@ -194,6 +213,5 @@ export default function Arena() {
         );
     }
 
-    // Fallback if URL is completely invalid
     return <h1 style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Loading Arena...</h1>;
 }

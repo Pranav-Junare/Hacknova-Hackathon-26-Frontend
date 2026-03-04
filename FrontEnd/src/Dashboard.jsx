@@ -45,7 +45,7 @@ export default function Dashboard(){
                     <p>Please return to the login page.</p>
                     
                     <button 
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate('/loginUser')}
                         style={{ marginTop: "15px", padding: "10px 20px", backgroundColor: "#0056b3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
                     >
                         Go to Login

@@ -28,12 +28,16 @@ export default function Queue() {
                 const payload = JSON.parse(message.body);
                 localStorage.setItem("opponent", payload.opponent);
                 
+                // 🔥 THE CRITICAL FIX: Save the Question ID!
+                if (payload.questionId) {
+                    localStorage.setItem("questionId", payload.questionId);
+                }
+                
                 // 3. WARP TO THE CORRECT ARENA MODE!
                 navigate(`/arena/${payload.mode}/${payload.roomId}`);
             });
 
             // 4. TELL SPRING BOOT WHICH QUEUE TO JOIN
-            // (Make sure this URL matches your actual join queue endpoint)
             console.log(mode);
             axios.post('http://localhost:8080/api/queue/join', { 
                 username: username,
@@ -46,7 +50,6 @@ export default function Queue() {
         // Cleanup when they leave the page
         return () => {
             if (client) client.disconnect();
-            // (Optional: send a request to leave the queue here)
         };
     }, [username, navigate, mode]);
 
