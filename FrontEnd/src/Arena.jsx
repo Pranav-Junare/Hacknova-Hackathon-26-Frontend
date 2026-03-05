@@ -68,7 +68,7 @@ export default function Arena() {
         }
     }, [mode, questionId]);
 
-    // --- WEBSOCKETS ---
+    // --- WEBSOCKETS --
     useEffect(() => {
         if (!username) { navigate('/loginUser'); return; }
 
